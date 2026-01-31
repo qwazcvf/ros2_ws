@@ -1,0 +1,20 @@
+# ROS 2 build and development files
+build/
+install/
+log/
+
+# Python cache and compiled files
+*.pyc
+__pycache__/
+*.so
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System and backup files
+.DS_Store
+*~
+*.bak

@@ -1,0 +1,40 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # 控制频率 100Hz
+
+    # 1. 关节状态广播器 (必须有，用于发布 /joint_states)
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # 2. 前轮转向控制器 (位置控制)
+    front_steering_controller:
+      type: position_controllers/JointGroupPositionController
+
+    # 3. 后轮转向控制器 (位置控制 - 既然以后要玩特技，我们先留着接口)
+    rear_steering_controller:
+      type: position_controllers/JointGroupPositionController
+
+    # 4. 驱动控制器 (速度控制 - 4轮驱动)
+    drive_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+# 配置控制器的关节绑定
+front_steering_controller:
+  ros__parameters:
+    joints:
+      - joint_steer_fl
+      - joint_steer_fr
+
+rear_steering_controller:
+  ros__parameters:
+    joints:
+      - joint_steer_rl
+      - joint_steer_rr
+
+drive_controller:
+  ros__parameters:
+    joints:
+      - joint_wheel_fl
+      - joint_wheel_fr
+      - joint_wheel_rl
+      - joint_wheel_rr

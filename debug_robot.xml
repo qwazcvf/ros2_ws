@@ -1,0 +1,2 @@
+data: "<robot\n  name=\"inspection_bot\">\n  <link name=\"base_footprint\"/>\n  <joint name=\"base_joint\" type=\"fixed\">\n    <parent link=\"base_..."
+---

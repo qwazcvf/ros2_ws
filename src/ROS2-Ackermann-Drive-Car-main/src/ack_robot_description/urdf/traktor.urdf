@@ -1,0 +1,440 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="traktor">
+
+  <!-- ===================================== -->
+  <!--               CHASSIS                 -->
+  <!-- ===================================== -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="10"/>
+      <inertia ixx="0.4" ixy="0" ixz="0" iyy="0.6" iyz="0" izz="0.8"/>
+    </inertial>
+    <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <!-- L:0.806 W:0.607 H:0.323 -->
+        <box size="0.806 0.607 0.323"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1.0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <box size="0.806 0.607 0.323"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ===================================== -->
+  <!--           FRONT RIGHT WHEEL           -->
+  <!-- ===================================== -->
+  <!-- Steering Knuckle -->
+  <link name="sag_on_dif">
+    <visual>
+      <geometry>
+        <cylinder length="0.04" radius="0.02"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.04" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <!-- Small mass for stability -->
+      <mass value="0.5"/>
+      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+    </inertial>
+  </link>
+
+  <joint name="sag_on_dif_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="sag_on_dif"/>
+    <origin xyz="0.28 -0.35 -0.16" rpy="1.5707 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="20" velocity="10" lower="-0.6" upper="0.6"/>
+    <!-- [Critical Fix] Added damping and friction to stop oscillation -->
+    <dynamics damping="1.0" friction="0.5"/>
+  </joint>
+
+  <!-- Wheel Link -->
+  <link name="sag_on_teker">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="2.0"/> <!-- Increased wheel mass slightly -->
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="sag_on_dif_sag_on_teker" type="continuous">
+    <parent link="sag_on_dif"/>
+    <child link="sag_on_teker"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="50" velocity="100"/>
+    <dynamics damping="0.1" friction="0.1"/>
+  </joint>
+
+
+  <!-- ===================================== -->
+  <!--           FRONT LEFT WHEEL            -->
+  <!-- ===================================== -->
+  <link name="sol_on_dif">
+    <visual>
+      <geometry>
+        <cylinder length="0.04" radius="0.02"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.04" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+    </inertial>
+  </link>
+
+  <joint name="sol_on_dif_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="sol_on_dif"/>
+    <origin xyz="0.28 0.35 -0.16" rpy="1.5707 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="20" velocity="10" lower="-0.6" upper="0.6"/>
+    <!-- [Critical Fix] Added damping -->
+    <dynamics damping="1.0" friction="0.5"/>
+  </joint>
+
+  <link name="sol_on_teker">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="2.0"/>
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="sol_on_dif_sol_on_teker" type="continuous">
+    <parent link="sol_on_dif"/>
+    <child link="sol_on_teker"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="50" velocity="100"/>
+    <dynamics damping="0.1" friction="0.1"/>
+  </joint>
+
+
+  <!-- ===================================== -->
+  <!--           REAR RIGHT WHEEL            -->
+  <!-- ===================================== -->
+  <link name="sag_arka">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="2.0"/>
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+      <material name="black">
+         <color rgba="0.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="sag_arka_dif_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="sag_arka"/>
+    <origin xyz="-0.28 -0.35 -0.16" rpy="1.5707 0 0"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="50" velocity="100"/>
+    <dynamics damping="0.1" friction="0.1"/>
+  </joint>
+
+
+  <!-- ===================================== -->
+  <!--            REAR LEFT WHEEL            -->
+  <!-- ===================================== -->
+  <link name="sol_arka">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="2.0"/>
+      <inertia ixx="0.005" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.01"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.06" radius="0.076"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="sol_arka_dif_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="sol_arka"/>
+    <origin xyz="-0.28 0.35 -0.16" rpy="1.5707 0 0"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="50" velocity="100"/>
+    <dynamics damping="0.1" friction="0.1"/>
+  </joint>
+
+
+  <!-- ===================================== -->
+  <!--             SENSORS                   -->
+  <!-- ===================================== -->
+
+  <!-- GPS -->
+  <link name="gps_link">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <geometry> <box size="0.05 0.05 0.05"/> </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry> <box size="0.05 0.05 0.05"/> </geometry>
+    </collision>
+  </link>
+  <joint name="gps_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps_link"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+  </joint>
+  
+  <gazebo reference="gps_link">
+    <sensor name="gps_sensor" type="gps">
+      <always_on>true</always_on>
+      <update_rate>1.0</update_rate>
+      <plugin name="gps_controller" filename="libgazebo_ros_gps_sensor.so">
+        <ros>
+          <remapping>gps_controller/out:=/gps/fix</remapping>
+        </ros>
+        <frame_name>gps_link</frame_name>
+        <offset>0 0 0</offset>
+        <drift>0.001 0.001 0.001</drift>
+        <gaussianNoise>0.05 0.05 0.05</gaussianNoise>
+        <velocityDrift>0.001 0.001 0.001</velocityDrift>
+        <velocityGaussianNoise>0.5 0.5 0.5</velocityGaussianNoise>
+      </plugin>
+    </sensor>
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+
+  <!-- IMU -->
+  <link name="imu_link">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <geometry> <box size="0.05 0.05 0.01"/> </geometry>
+      <material name="red"> <color rgba="1 0 0 1"/> </material>
+    </visual>
+    <collision>
+      <geometry> <box size="0.05 0.05 0.01"/> </geometry>
+    </collision>
+  </link>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0.3 0.0 0.162" rpy="0.0 0.0 0.0"/>
+  </joint>
+
+  <gazebo reference="imu_link">
+    <sensor name="imu_sensor" type="imu">
+      <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+        <ros><remapping>~/out:=/imu</remapping></ros>
+        <initial_orientation_as_reference>false</initial_orientation_as_reference>
+      </plugin>
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+    </sensor>
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+
+  <!-- LIDAR -->
+  <link name="hokuyo_link">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.05" length="0.05"/></geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.05" length="0.05"/></geometry>
+    </visual>
+    <inertial>
+      <mass value="0.05" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001" />
+    </inertial>
+  </link>
+
+  <joint name="hokuyo_joint" type="fixed">
+    <axis xyz="0 1 0" />
+    <origin xyz="0.2 0 0.19" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="hokuyo_link"/>
+  </joint>
+
+  <gazebo reference="hokuyo_link">
+    <sensor name="hokuyo_link" type="ray">
+      <pose>0 0 0 0 0 0</pose>
+      <always_on>true</always_on>
+      <visualize>true</visualize>
+      <update_rate>10</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1.00000</resolution>
+            <min_angle>0.000000</min_angle>
+            <max_angle>6.280000</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.120000</min>
+          <max>6.0</max>
+          <resolution>0.015000</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <plugin name="scan" filename="libgazebo_ros_ray_sensor.so">
+        <ros><remapping>~/out:=scan</remapping></ros>
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>hokuyo_link</frame_name>
+      </plugin>
+    </sensor>
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+
+  <!-- ===================================== -->
+  <!--           ACKERMANN PLUGIN            -->
+  <!-- ===================================== -->
+  <gazebo>
+    <plugin name="gazebo_ros_ackermann_drive" filename="libgazebo_ros_ackermann_drive.so">
+      <ros>
+        <remapping>cmd_vel:=cmd_vel</remapping>
+        <remapping>odom:=odom</remapping>
+        <remapping>distance:=distance_demo</remapping>
+      </ros>
+
+      <update_rate>100.0</update_rate>
+
+      <!-- wheels -->
+      <front_left_joint>sol_on_dif_sol_on_teker</front_left_joint>
+      <front_right_joint>sag_on_dif_sag_on_teker</front_right_joint>
+      <rear_left_joint>sol_arka_dif_joint</rear_left_joint>
+      <rear_right_joint>sag_arka_dif_joint</rear_right_joint>
+      <left_steering_joint>sol_on_dif_joint</left_steering_joint>
+      <right_steering_joint>sag_on_dif_joint</right_steering_joint>
+
+      <max_steer>0.6</max_steer>
+      <max_steering_angle>7.85</max_steering_angle>
+      <max_speed>20</max_speed>
+
+      <!-- Reduced PID parameters for smaller vehicle -->
+      <left_steering_pid_gain>20 0 0.1</left_steering_pid_gain>
+      <left_steering_i_range>0 0</left_steering_i_range>
+      <right_steering_pid_gain>20 0 0.1</right_steering_pid_gain>
+      <right_steering_i_range>0 0</right_steering_i_range>
+
+      <linear_velocity_pid_gain>20 0 0.1</linear_velocity_pid_gain>
+      <linear_velocity_i_range>0 0</linear_velocity_i_range>
+
+      <!-- output -->
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <publish_wheel_tf>true</publish_wheel_tf>
+      <publish_distance>true</publish_distance>
+
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+
+    </plugin>
+  </gazebo>
+
+
+  <!-- ===================================== -->
+  <!--             GAZEBO COLORS             -->
+  <!-- ===================================== -->
+  <gazebo reference="base_link">
+    <material>Gazebo/White</material>
+  </gazebo>
+  <gazebo reference="sag_on_dif">
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="sol_on_dif">
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="sag_on_teker">
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="sol_on_teker">
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="sol_arka">
+    <material>Gazebo/Black</material>
+  </gazebo>
+  <gazebo reference="sag_arka">
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+</robot>
