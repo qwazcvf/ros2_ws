@@ -10,4 +10,8 @@ cd ~/ros2_ws
 source install/setup.bash
 #6.启动
 ros2 launch unitree_lidar_ros2 launch.py
-#----------------------------------------------------------
+#-----------------建图---------------------------------
+cd ~/ros2_ws
+source install/setup.bash
+# 启动针对 L2 优化的建图节点
+ros2 launch point_lio mapping_unilidar_l2.launch.py
