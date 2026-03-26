@@ -170,7 +170,9 @@ void UnitreeLidarSDKNode::timer_callback()
         if (lsdk_->getImuData(imu))
         {
             // publish imu message
-            rclcpp::Time timestamp(imu.info.stamp.sec, imu.info.stamp.nsec);
+            // [修复] 强制使用 ROS 系统时间，解决 IMU 时间戳为硬件时间导致无法建图的问题
+            rclcpp::Time timestamp = this->now();
+            // 原代码: rclcpp::Time timestamp(imu.info.stamp.sec, imu.info.stamp.nsec);
 
             sensor_msgs::msg::Imu imuMsg;
             imuMsg.header.frame_id = imu_frame_;
@@ -193,7 +195,7 @@ void UnitreeLidarSDKNode::timer_callback()
 
             // publish tf from initial imu to real-time imu
             geometry_msgs::msg::TransformStamped transformStamped;
-            transformStamped.header.stamp = this->now(); // 使用当前时间
+            transformStamped.header.stamp = timestamp; // 保持和 IMU 消息一致
             transformStamped.header.frame_id = imu_frame_ + "_initial"; // 父坐标系
             transformStamped.child_frame_id = imu_frame_; // 子坐标系
             transformStamped.transform.translation.x = 0;
