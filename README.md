@@ -1,32 +1,36 @@
-# 宇树 L2 激光雷达 (Jetson Nano 专版)
+# 航空部装厂房巡检机器人 - 3D 雷达感知与建图模块
 
-本项目包含在 ARM 架构的 Jetson Nano 上成功运行的宇树 L2 雷达 ROS 2 驱动代码。
-已针对 4000000 波特率和底层 timeout 问题进行了深度适配。
+本项目为基于四向四驱底盘结构的巡检机器人提供核心的 3D 空间感知与建图能力。针对边缘计算平台（Jetson Nano / ARM 架构）进行了深度适配与性能优化。
 
-## ⚠️ 硬件避坑指南 (每次点火前必看)
-1. **供电与带宽**：雷达的 USB 线 **必须** 插在 Jetson Nano 的 **蓝色 USB 3.0 接口** 上！插黑口必报 `timeout` 错误。
-2. **确认设备**：确保雷达已被识别为 `/dev/ttyACM0`。
+本模块融合了 **Unitree L2 激光雷达**的高频点云数据与底层 IMU 数据，并采用定制版 **FAST-LIO** (Fast LiDAR-Inertial Odometry) 算法实现低延迟、高精度的实时三维建图。
 
-## 🚀 启动指令 (标准四步曲)
+## 🛠️ 硬件与环境配置
+* **计算平台**: Nvidia Jetson Nano (ARM 架构)
+* **操作系统**: Ubuntu 22.04 + ROS 2 (Humble)
+* **核心传感器**: 宇树 Unitree L2 激光雷达 (含内置 IMU)
+* **通信波特率**: 4000000 bps (已在底层 SDK 修复超时断连 Bug)
 
-打开终端，依次执行以下命令：
+> **⚠️ 硬件避坑级警告 (每次开机必看)**
+> 1. **供电与带宽**：雷达的 USB 线 **必须** 插在 Jetson Nano 的 **蓝色 USB 3.0 接口** 上！若误插黑色 USB 2.0 接口，必报 `Serial port timeout` 错误！
+> 2. **确认设备名**：雷达上电后，请确保系统已将其识别为 `/dev/ttyACM0`。
 
+## 📂 核心代码结构
+工作空间 `ros2_ws/src` 下包含以下核心功能包：
+* `unitree_lidar_ros2`: 宇树 L2 雷达 ROS 2 原生驱动（已过滤 ROS 1 冲突包）。
+* `unilidar_fastlio_ros2-ros2`: 宇树官方定制版 FAST-LIO 紧耦合建图算法，开箱即用，无需修改外部依赖。
+
+## 🚀 极速启动指南 (Quick Start)
+
+为了最大程度简化部署流程，本项目已将复杂的节点配置与环境配置封装为两个一键启动脚本。只需简单的两步，即可在 Jetson Nano 上跑通雷达与 3D 建图：
+
+**⚠️ 首次克隆本仓库后，请先赋予脚本可执行权限（仅需执行一次）：**
 ```bash
-# 1. 检查雷达是否正常连接 (应输出 /dev/ttyACM0)
-ls /dev/ttyACM*
-
-# 2. 赋予串口超级权限 (会要求输入 jetson 的开机密码)
-sudo chmod 777 /dev/ttyACM0
-
-# 3. 进入工作空间并刷新环境变量
 cd ~/ros2_ws
-source install/setup.bash
+chmod +x start_lidar.sh start_slam.sh
 
-# 4. 点火启动 ROS 2 节点与 RViz
-ros2 launch unitree_lidar_ros2 launch.py
-
-## 🚀 建图启动指令 (另一个终端)
+1.打开第一个终端启动雷达驱动
 cd ~/ros2_ws
-source install/setup.bash
-ros2 launch fast_lio mapping.launch.py
-
+./start_lidar.sh
+2.打开第一个终端开启激光SLAM建图
+cd ~/ros2_ws
+./start_slam.sh
