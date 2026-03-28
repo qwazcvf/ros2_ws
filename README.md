@@ -28,9 +28,14 @@
 cd ~/ros2_ws
 chmod +x start_lidar.sh start_slam.sh
 
-1.打开第一个终端启动雷达驱动
+1. 打开第一个终端启动雷达驱动
+Bash
+
 cd ~/ros2_ws
 ./start_lidar.sh
-2.打开第一个终端开启激光SLAM建图
+
+2. 打开第二个终端开启激光 SLAM 建图
+Bash
+
 cd ~/ros2_ws
 ./start_slam.sh
