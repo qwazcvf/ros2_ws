@@ -24,3 +24,9 @@ source install/setup.bash
 
 # 4. 点火启动 ROS 2 节点与 RViz
 ros2 launch unitree_lidar_ros2 launch.py
+
+## 🚀 建图启动指令 (另一个终端)
+cd ~/ros2_ws
+source install/setup.bash
+ros2 launch fast_lio mapping.launch.py
+
