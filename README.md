@@ -28,6 +28,12 @@
 cd ~/ros2_ws
 chmod +x start_lidar.sh start_slam.sh
 
+**⚠️ 如果显示Serial time not：**
+find ~/ros2_ws/src/unilidar_sdk2 -type f -executable | grep -iE "bin/.*(test|serial|unilidar)"
+
+/home/jetson/ros2_ws/src/unilidar_sdk2/unitree_lidar_sdk/bin/example_lidar_serial
+
+
 1. 打开第一个终端启动雷达驱动
 Bash
 
