@@ -46,6 +46,9 @@ Bash
 cd ~/ros2_ws
 ./start_slam.sh
 
-保存图
+3.打开第三个终端开启摄像头画面
+cd ~/ros2_ws
+./start_camera.sh
+4.保存图
 cd ~/ros2_ws
 python3 map_builder.py
