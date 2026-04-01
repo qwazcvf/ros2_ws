@@ -47,4 +47,5 @@ cd ~/ros2_ws
 ./start_slam.sh
 
 保存图
-ros2 run nav2_map_server map_saver_cli -t /projected_map -f ~/ros2_ws/maps/my_room_map
+cd ~/ros2_ws
+python3 map_builder.py
