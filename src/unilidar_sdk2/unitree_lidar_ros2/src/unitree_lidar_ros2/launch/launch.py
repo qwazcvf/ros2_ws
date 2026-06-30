@@ -13,20 +13,23 @@ def generate_launch_description():
         output='screen',
         parameters= [
                 
-                {'initialize_type': 1},
+                # ===== UDP 模式 (网线连接) =====
+                {'initialize_type': 2},
                 {'work_mode': 0},
                 {'use_system_timestamp': True},
                 {'range_min': 0.0},
                 {'range_max': 100.0},
                 {'cloud_scan_num': 18},
 
+                # 以下参数在 UDP 模式下忽略
                 {'serial_port': '/dev/ttyACM0'},
                 {'baudrate': 4000000},
 
+                # UDP 网络配置
                 {'lidar_port': 6101},
-                {'lidar_ip': '192.168.1.62'},
+                {'lidar_ip': '192.168.1.62'},       # 雷达的出厂 IP
                 {'local_port': 6201},
-                {'local_ip': '192.168.1.2'},
+                {'local_ip': '192.168.1.2'},         # Jetson 网口的 IP
                 
                 {'cloud_frame': "unilidar_lidar"},
                 {'cloud_topic': "unilidar/cloud"},
@@ -35,15 +38,6 @@ def generate_launch_description():
                 ]
     )
 
-    # Run Rviz
-    package_path = subprocess.check_output(['ros2', 'pkg', 'prefix', 'unitree_lidar_ros2']).decode('utf-8').rstrip()
-    rviz_config_file = os.path.join(package_path, 'share', 'unitree_lidar_ros2', 'view.rviz')
-    print("rviz_config_file = " + rviz_config_file)
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        arguments=['-d', rviz_config_file],
-        output='log'
-    )
-    return LaunchDescription([node1, rviz_node])
+    # 不再启动 RViz（由 SLAM 脚本负责可视化）
+    # 只跑雷达驱动节点，稳定可靠
+    return LaunchDescription([node1])

@@ -14,10 +14,11 @@ typedef pcl::PointCloud<PointType> PointCloudXYZI;
 enum LID_TYPE
 {
   AVIA = 1,
-  VELO16,
-  OUST64,
-  MID360
-};  //{1, 2, 3}
+  VELO16,    // 2
+  OUST64,    // 3
+  MID360,    // 4
+  UNITREE    // 5  Unitree L1/L2 雷达
+};
 enum TIME_UNIT
 {
   SEC = 0,

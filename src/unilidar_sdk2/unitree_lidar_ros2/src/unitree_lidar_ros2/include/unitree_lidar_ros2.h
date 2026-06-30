@@ -93,9 +93,9 @@ UnitreeLidarSDKNode::UnitreeLidarSDKNode(const rclcpp::NodeOptions &options)
     declare_parameter<int>("baudrate", 4000000);
 
     declare_parameter<int>("lidar_port", 6101);
-    declare_parameter<std::string>("lidar_ip", "192.168.1.2");
+    declare_parameter<std::string>("lidar_ip", "192.168.1.62");
     declare_parameter<int>("local_port", 6201);
-    declare_parameter<std::string>("local_ip", "192.168.1.62");
+    declare_parameter<std::string>("local_ip", "192.168.1.2");
 
     declare_parameter<std::string>("cloud_frame", "unilidar_lidar");
     declare_parameter<std::string>("cloud_topic", "unilidar/cloud");
@@ -147,6 +147,12 @@ UnitreeLidarSDKNode::UnitreeLidarSDKNode(const rclcpp::NodeOptions &options)
     }
 
     lsdk_->setLidarWorkMode(work_mode_);
+
+    // 启动雷达旋转并复位（串口切UDP后必须复位一次才能出数据）
+    lsdk_->startLidarRotation();
+    sleep(1);
+    lsdk_->resetLidar();
+    sleep(1);
 
     // ROS2
     broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);

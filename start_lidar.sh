@@ -1,22 +1,54 @@
 #!/bin/bash
 
-# 1. 检查雷达是否正常连接 (应输出 /dev/ttyACM0)
-echo "Checking for LiDAR connection..."
-if [ ! -e /dev/ttyACM0 ]; then
-  echo "Error: LiDAR not found at /dev/ttyACM0!"
-  exit 1
+# ============================================================
+# 🚀 雷达启动脚本（UDP 网口模式）
+# 硬件：Unitree L2 LiDAR ↔ Jetson enP8p1s0 直连
+# ============================================================
+
+echo "========================================="
+echo "🔍 1. 检查网口连接状态..."
+echo "========================================="
+
+# 检查网口物理链路
+LINK_STATE=$(ip link show enP8p1s0 2>/dev/null | grep -oP 'state \K\w+')
+if [ "$LINK_STATE" != "UP" ]; then
+    echo "❌ 错误：网口 enP8p1s0 未连接！请检查网线。"
+    exit 1
 fi
-echo "LiDAR found at /dev/ttyACM0."
+echo "✅ 网口 enP8p1s0 物理链路正常"
 
-# 2. 赋予串口超级权限 (会要求输入 jetson 的开机密码)
-echo "Setting permissions for /dev/ttyACM0..."
-sudo chmod 777 /dev/ttyACM0
+# 检查并配置 IP
+CURRENT_IP=$(ip addr show enP8p1s0 | grep -oP 'inet \K[\d.]+')
+if [ "$CURRENT_IP" != "192.168.1.2" ]; then
+    echo "⚙️  正在配置 Jetson 网口 IP: 192.168.1.2/24 ..."
+    # 如果有旧 IP 先删掉
+    if [ -n "$CURRENT_IP" ]; then
+        sudo ip addr del ${CURRENT_IP}/24 dev enP8p1s0 2>/dev/null
+    fi
+    sudo ip addr add 192.168.1.2/24 dev enP8p1s0
+    echo "✅ IP 已配置为 192.168.1.2"
+else
+    echo "✅ IP 已是 192.168.1.2，无需重新配置"
+fi
 
-# 3. 进入工作空间并刷新环境变量
-echo "Sourcing workspace environment..."
+echo ""
+echo "========================================="
+echo "📡 2. 加载 ROS2 环境..."
+echo "========================================="
+
 source /opt/ros/humble/setup.bash
-source install/setup.bash
+source ~/ros2_ws/install/setup.bash
 
-# 4. 点火启动 ROS 2 节点
-echo "Launching unitree_lidar_ros2..."
+# 杀掉残留的雷达进程，释放 UDP 端口
+echo "🧹 清理残留雷达进程..."
+pkill -f unitree_lidar_ros2_node 2>/dev/null
+sleep 1
+
+echo ""
+echo "========================================="
+echo "🚀 3. 启动雷达节点 (UDP 模式)..."
+echo "   雷达 IP: 192.168.1.62:6101"
+echo "   Jetson:  192.168.1.2:6201"
+echo "========================================="
+
 ros2 launch unitree_lidar_ros2 launch.py

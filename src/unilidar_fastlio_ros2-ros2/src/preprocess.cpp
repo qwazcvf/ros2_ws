@@ -78,6 +78,7 @@ void Preprocess::process(const sensor_msgs::msg::PointCloud2::UniquePtr &msg, Po
       break;
 
     case VELO16:
+    case UNITREE:   // Unitree L1/L2 点云格式与 Velodyne 兼容 (x,y,z,intensity,time,ring)
       velodyne_handler(msg);
       break;
 

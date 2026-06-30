@@ -1,54 +1,107 @@
-# 航空部装厂房巡检机器人 - 3D 雷达感知与建图模块
+# Jetson Orin Nano + Unitree L2 激光雷达 + FAST-LIO 建图
 
-本项目为基于四向四驱底盘结构的巡检机器人提供核心的 3D 空间感知与建图能力。针对边缘计算平台（Jetson Nano / ARM 架构）进行了深度适配与性能优化。
+## 硬件
 
-本模块融合了 **Unitree L2 激光雷达**的高频点云数据与底层 IMU 数据，并采用定制版 **FAST-LIO** (Fast LiDAR-Inertial Odometry) 算法实现低延迟、高精度的实时三维建图。
+- **Jetson Orin Nano** (ARM64, Ubuntu 22.04, ROS2 Humble)
+- **Unitree L2 激光雷达** (18线, 360°机械旋转)
+- **连接方式**: 网线直连 (UDP), 不再使用 USB 串口
 
-## 🛠️ 硬件与环境配置
-* **计算平台**: Nvidia Jetson Nano (ARM 架构)
-* **操作系统**: Ubuntu 22.04 + ROS 2 (Humble)
-* **核心传感器**: 宇树 Unitree L2 激光雷达 (含内置 IMU)
-* **通信波特率**: 4000000 bps (已在底层 SDK 修复超时断连 Bug)
+## 网络配置
 
-> **⚠️ 硬件避坑级警告 (每次开机必看)**
-> 1. **供电与带宽**：雷达的 USB 线 **必须** 插在 Jetson Nano 的 **蓝色 USB 3.0 接口** 上！若误插黑色 USB 2.0 接口，必报 `Serial port timeout` 错误！
-> 2. **确认设备名**：雷达上电后，请确保系统已将其识别为 `/dev/ttyACM0`。
+| 设备 | IP | 端口 |
+|------|------|------|
+| 雷达 (Unitree L2) | `192.168.1.62` | `6101` |
+| Jetson 网口 (`enP8p1s0`) | `192.168.1.2` | `6201` |
 
-## 📂 核心代码结构
-工作空间 `ros2_ws/src` 下包含以下核心功能包：
-* `unitree_lidar_ros2`: 宇树 L2 雷达 ROS 2 原生驱动（已过滤 ROS 1 冲突包）。
-* `unilidar_fastlio_ros2-ros2`: 宇树官方定制版 FAST-LIO 紧耦合建图算法，开箱即用，无需修改外部依赖。
+## 建图流程
 
-## 🚀 极速启动指南 (Quick Start)
+### 第一步：在线采集点云
 
-为了最大程度简化部署流程，本项目已将复杂的节点配置与环境配置封装为两个一键启动脚本。只需简单的两步，即可在 Jetson Nano 上跑通雷达与 3D 建图：
+```bash
+# 终端1: 启动雷达驱动
+cd ~/ros2_ws && ./start_lidar.sh
 
-**⚠️ 首次克隆本仓库后，请先赋予脚本可执行权限（仅需执行一次）：**
+# 终端2: 启动 FAST-LIO SLAM
+cd ~/ros2_ws && ./start_slam.sh
+
+# 终端3: 保存点云 (每2秒存 latest.pcd, Ctrl+C 存 final.pcd)
+cd ~/ros2_ws && python3 save_pcd.py
+```
+
+推车走一圈覆盖建图区域, 完成后在终端3按 `Ctrl+C`。
+
+### 第二步：离线生成 2D 地图
+
 ```bash
 cd ~/ros2_ws
-chmod +x start_lidar.sh start_slam.sh
+python3 pcd_to_2d_map.py maps/final.pcd --output 2D_map
+```
 
-**⚠️ 如果显示Serial time not：**
-find ~/ros2_ws/src/unilidar_sdk2 -type f -executable | grep -iE "bin/.*(test|serial|unilidar)"
+输出:
+- `maps/2D_map.pgm` — Nav2 可加载的占据栅格地图
+- `maps/2D_map.yaml` — 地图元数据
+- `maps/2D_map_debug.png` — 调参验证用图 (红=障碍, 绿=地面)
 
-/home/jetson/ros2_ws/src/unilidar_sdk2/unitree_lidar_sdk/bin/example_lidar_serial
+## 调参
 
+编辑 `pcd_to_2d_map.py` 头部参数:
 
-1. 打开第一个终端启动雷达驱动
-Bash
+```python
+GROUND_PERCENTILE = 10    # 地面百分位, 越小越保守
+GROUND_TOLERANCE = 0.10   # 多高算地面 (m)
+OBSTACLE_MIN_H = 0.10     # 最低障碍高度 (m)
+OBSTACLE_MAX_H = 2.20     # 最高障碍高度 (m)
+DILATE_PIXELS = 1         # 墙体膨胀像素数
+MIN_COMPONENT = 8         # 小于此格数的小连通域删除
+```
 
-cd ~/ros2_ws
-./start_lidar.sh
+## 本次更新 (2026-06-30)
 
-2. 打开第二个终端开启激光 SLAM 建图
-Bash
+### 雷达: 串口 → UDP 网口
 
-cd ~/ros2_ws
-./start_slam.sh
+- **动机**: 串口带宽瓶颈, 偶尔丢数据导致 FAST-LIO 点云"飞了"
+- **改动文件**:
+  - `src/unilidar_sdk2/.../launch.py`: `initialize_type` 1→2, IP 修正
+  - `src/unilidar_sdk2/.../unitree_lidar_ros2.h`: 默认 IP 修正 + 启动时自动复位雷达
+  - `start_lidar.sh`: 去掉串口检查, 改为自动配置网口 IP
 
-3.打开第三个终端开启摄像头画面
-cd ~/ros2_ws
-./start_camera.sh
-4.保存图
-cd ~/ros2_ws
-python3 map_builder.py
+### FAST-LIO: 修复 lidar_type 时间戳丢失
+
+- **问题**: `lidar_type: 5` 在枚举中不存在, 走到 `default_handler`, 每个点的 `time` 和 `ring` 全丢了, 运动补偿失效
+- **改动**: `src/unilidar_fastlio_ros2-ros2/src/preprocess.h/cpp` 增加 `UNITREE = 5`, 走 `velodyne_handler` 正确提取每点时间戳
+
+### 建图: 简化为离线 PCD → 2D
+
+- **废弃**: `map_builder.py`, `start_map_builder.sh`, `fastlio_2d_map_builder`, `start_octomap.launch.py`
+- **新方案**: `save_pcd.py` (在线存 PCD) + `pcd_to_2d_map.py` (离线转 2D)
+- **优势**: 调参不用重新跑 SLAM, 同一份 PCD 可以反复尝试不同参数
+
+## 文件说明
+
+| 文件 | 用途 |
+|------|------|
+| `start_lidar.sh` | 一键启动雷达 (自动配 IP) |
+| `start_slam.sh` | 一键启动 FAST-LIO |
+| `save_pcd.py` | 在线累积点云并定期保存 PCD |
+| `pcd_to_2d_map.py` | 离线 PCD → 2D PGM/YAML |
+| `RADAR_README.md` | 雷达详细说明 (含故障排查) |
+| `HOWTO_MAP.md` | 建图操作速查 |
+
+## 文件结构
+
+```
+~/ros2_ws/
+├── src/
+│   ├── unilidar_sdk2/          # Unitree LiDAR SDK + ROS2 wrapper
+│   └── unilidar_fastlio_ros2-ros2/  # FAST-LIO 3D SLAM
+├── start_lidar.sh
+├── start_slam.sh
+├── save_pcd.py
+├── pcd_to_2d_map.py
+├── maps/                       # 输出地图 (不入 git)
+│   ├── final.pcd
+│   ├── 2D_map.pgm
+│   └── 2D_map.yaml
+├── RADAR_README.md
+└── HOWTO_MAP.md
+```
