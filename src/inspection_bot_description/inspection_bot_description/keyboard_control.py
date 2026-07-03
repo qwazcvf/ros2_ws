@@ -1,74 +1,49 @@
 #!/usr/bin/env python3
 """
-Inspection Bot — Front Steering 4WD keyboard controller.
+Inspection Bot — /cmd_vel Keyboard Control (Phase 2A).
 
-Front wheels (fl, fr) steer via Ackermann geometry.
-Rear wheels (rl, rr) stay straight, all four driven.
+Publishes ONLY /cmd_vel (geometry_msgs/msg/Twist).
+Does NOT publish any controller command topics.
 
-Publishes (Float64MultiArray, order = [fl, fr, rl, rr]):
-  /steering_controller/commands   — 4 position values (rad)
-  /drive_controller/commands      — 4 velocity values (rad/s)
+Controls:
+  W / S       : forward / reverse
+  A / D       : turn left / right
+  SPACE / X   : stop
+  Q/E/Z/C     : disabled
+  ESC / Ctrl-C: quit
 """
 
-import math
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray
+from geometry_msgs.msg import Twist
 import sys
 import termios
 import tty
 import select
 
-# ── Vehicle geometry ──
-WHEELBASE   = 0.460   # distance front axle to rear axle
-TRACK_WIDTH = 0.476   # distance left wheel to right wheel
-
-# ── Control limits ──
-MAX_STEER  = 0.60     # rad (~34 deg), max front steering angle
-STEP_STEER = 0.05     # rad per keypress
-MAX_SPEED  = 12.0     # rad/s, max wheel velocity
-STEP_SPEED = 1.0      # rad/s per keypress
-PUB_RATE   = 0.05     # seconds
+MAX_LINEAR  = 0.10   # m/s
+MAX_REVERSE = 0.05   # m/s
+MAX_ANGULAR = 0.30   # rad/s
+STEP_LINEAR = 0.02   # m/s per keypress
+STEP_ANGULAR = 0.05  # rad/s per keypress
+PUB_RATE = 0.05      # 20 Hz
 
 HELP_MSG = """
 ╔══════════════════════════════════════════════════════════════╗
-║   Inspection Bot — Front Steering 4WD Mode                  ║
+║   Inspection Bot — /cmd_vel Keyboard Control (Phase 2A)     ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  W / S       : forward / reverse                            ║
-║  A / D       : front steering left / right                  ║
-║  SPACE or X  : stop and center steering                     ║
-║  Q / E / Z / C : disabled                                   ║
-║  ESC         : quit                                         ║
+║  A / D       : turn left / right                            ║
+║  SPACE or X  : stop                                         ║
+║  Q / E / Z / C : disabled                                    ║
+║  ESC / Ctrl-C : quit                                        ║
+║                                                             ║
+║  Publishes only: /cmd_vel                                   ║
+║  Does not publish controller command topics                 ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 
 settings = None
-
-
-def ackermann(steer):
-    """Compute Ackermann front steering angles.
-
-    steer > 0 -> left turn:  fl (inner) > fr (outer), both positive.
-    steer < 0 -> right turn: fr (inner) more negative than fl (outer).
-    steer = 0 -> straight.
-    Returns (fl_angle, fr_angle).
-    """
-    if abs(steer) < 1e-9:
-        return 0.0, 0.0
-
-    R = WHEELBASE / math.tan(abs(steer))
-    half_track = TRACK_WIDTH / 2.0
-
-    if steer > 0:
-        # left turn
-        fl = math.atan(WHEELBASE / (R - half_track))
-        fr = math.atan(WHEELBASE / (R + half_track))
-    else:
-        # right turn
-        fl = -math.atan(WHEELBASE / (R + half_track))
-        fr = -math.atan(WHEELBASE / (R - half_track))
-
-    return fl, fr
 
 
 def get_key():
@@ -81,36 +56,23 @@ def get_key():
 
 class KeyboardController(Node):
     def __init__(self):
-        super().__init__("keyboard_controller")
+        super().__init__("keyboard_control")
 
-        self.pub_steering = self.create_publisher(
-            Float64MultiArray, "/steering_controller/commands", 10
-        )
-        self.pub_drive = self.create_publisher(
-            Float64MultiArray, "/drive_controller/commands", 10
-        )
+        self.cmd_pub = self.create_publisher(Twist, "/cmd_vel", 10)
 
-        self.speed = 0.0
-        self.steer = 0.0   # virtual front steering angle (Ackermann reference)
+        self.linear_x = 0.0
+        self.angular_z = 0.0
 
-        self.timer = self.create_timer(PUB_RATE, self.publish_commands)
+        self.timer = self.create_timer(PUB_RATE, self.publish_cmd)
 
-    def publish_commands(self):
-        fl, fr = ackermann(self.steer)
-
-        # Steering: front wheels steer, rear stay straight
-        steer_msg = Float64MultiArray()
-        steer_msg.data = [fl, fr, 0.0, 0.0]
-        self.pub_steering.publish(steer_msg)
-
-        # Drive: all four wheels same speed
-        drive_msg = Float64MultiArray()
-        drive_msg.data = [self.speed] * 4
-        self.pub_drive.publish(drive_msg)
+    def publish_cmd(self):
+        msg = Twist()
+        msg.linear.x = self.linear_x
+        msg.angular.z = self.angular_z
+        self.cmd_pub.publish(msg)
 
         print(
-            f"\r  speed: {self.speed:+7.2f} rad/s | steer: {self.steer:+7.2f} rad"
-            f"  fl={fl:+7.3f} fr={fr:+7.3f} rl=0.000 rr=0.000  ",
+            f"\r  linear.x: {self.linear_x:+6.2f} m/s | angular.z: {self.angular_z:+6.2f} rad/s  ",
             end="", flush=True,
         )
 
@@ -127,19 +89,19 @@ def main():
             key = get_key()
 
             if key == "w":
-                node.speed = min(MAX_SPEED, node.speed + STEP_SPEED)
+                node.linear_x = min(MAX_LINEAR, node.linear_x + STEP_LINEAR)
             elif key == "s":
-                node.speed = max(-MAX_SPEED, node.speed - STEP_SPEED)
+                node.linear_x = max(-MAX_REVERSE, node.linear_x - STEP_LINEAR)
             elif key == "a":
-                node.steer = min(MAX_STEER, node.steer + STEP_STEER)
+                node.angular_z = min(MAX_ANGULAR, node.angular_z + STEP_ANGULAR)
             elif key == "d":
-                node.steer = max(-MAX_STEER, node.steer - STEP_STEER)
+                node.angular_z = max(-MAX_ANGULAR, node.angular_z - STEP_ANGULAR)
             elif key in (" ", "x"):
-                node.speed = 0.0
-                node.steer = 0.0
-                print("\n*** STOP + CENTER ***")
+                node.linear_x = 0.0
+                node.angular_z = 0.0
+                print("\n*** STOP ***")
             elif key in ("q", "e", "z", "c"):
-                print("\n  Crab/spot mode disabled in normal front-steer mode.")
+                print("\n  Q/E/Z/C disabled. Use A/D for turning, W/S for speed.")
             elif key in ("\x1b", "\x03"):
                 break
 
@@ -148,10 +110,11 @@ def main():
     except Exception as e:
         print(f"\nError: {e}")
     finally:
-        stop = Float64MultiArray()
-        stop.data = [0.0, 0.0, 0.0, 0.0]
-        node.pub_steering.publish(stop)
-        node.pub_drive.publish(stop)
+        # Publish zero before exit
+        zero = Twist()
+        zero.linear.x = 0.0
+        zero.angular.z = 0.0
+        node.cmd_pub.publish(zero)
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
         rclpy.shutdown()

@@ -372,13 +372,12 @@
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
+    <!-- Phase 2A: rear steering — state only, no command interface -->
     <joint name="rl_steering_joint">
-      <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
     <joint name="rr_steering_joint">
-      <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>

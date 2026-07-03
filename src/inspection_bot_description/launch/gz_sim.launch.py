@@ -1,5 +1,12 @@
 """
-Launch Inspection Bot in Ignition Gazebo (Fortress) with ros2_control.
+Phase 2A — Gazebo simulation with cmd_vel adapter.
+
+Starts:
+  1. Ignition Gazebo Fortress
+  2. robot_state_publisher
+  3. Spawn robot
+  4. Controller spawners (front_steering, drive, joint_state_broadcaster)
+  5. gazebo_cmd_vel_adapter
 
 Usage:
   ros2 launch inspection_bot_description gz_sim.launch.py
@@ -23,6 +30,7 @@ def generate_launch_description():
     robot_desc_cmd = Command([FindExecutable(name="xacro"), " ", xacro_file])
     robot_description = {"robot_description": ParameterValue(robot_desc_cmd, value_type=str)}
 
+    # 1. Ignition Gazebo
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([FindPackageShare("ros_gz_sim"), "launch", "gz_sim.launch.py"])
@@ -30,6 +38,7 @@ def generate_launch_description():
         launch_arguments={"gz_args": "-r empty.sdf"}.items(),
     )
 
+    # 2. robot_state_publisher
     robot_state_pub = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
@@ -37,6 +46,7 @@ def generate_launch_description():
         parameters=[robot_description, {"use_sim_time": use_sim_time}],
     )
 
+    # 3. Spawn robot
     spawn = Node(
         package="ros_gz_sim",
         executable="create",
@@ -44,15 +54,15 @@ def generate_launch_description():
         output="screen",
     )
 
-    # Controller spawners (delayed until Gazebo plugin initializes)
+    # 4. Controller spawners (delayed 3s until Gazebo plugin initializes)
     jsp = Node(
         package="controller_manager", executable="spawner",
         arguments=["joint_state_broadcaster", "-c", "/controller_manager"],
         parameters=[{"use_sim_time": use_sim_time}],
     )
-    steer = Node(
+    front_steer = Node(
         package="controller_manager", executable="spawner",
-        arguments=["steering_controller", "-c", "/controller_manager"],
+        arguments=["front_steering_controller", "-c", "/controller_manager"],
         parameters=[{"use_sim_time": use_sim_time}],
     )
     drive = Node(
@@ -60,13 +70,36 @@ def generate_launch_description():
         arguments=["drive_controller", "-c", "/controller_manager"],
         parameters=[{"use_sim_time": use_sim_time}],
     )
+    delay_ctrl = TimerAction(period=3.0, actions=[jsp, front_steer, drive])
 
-    delay = TimerAction(period=8.0, actions=[jsp, steer, drive])
+    # 5. gazebo_cmd_vel_adapter (delayed 5s)
+    adapter = Node(
+        package="inspection_bot_description",
+        executable="gazebo_cmd_vel_adapter",
+        name="gazebo_cmd_vel_adapter",
+        output="screen",
+        parameters=[{
+            "use_sim_time": True,
+            "wheelbase": 0.460,
+            "track_width": 0.476,
+            "wheel_radius": 0.076,
+            "max_speed_mps": 0.10,
+            "max_reverse_speed_mps": 0.05,
+            "max_angular_speed_radps": 0.30,
+            "max_steering_angle_rad": 0.60,
+            "cmd_timeout_sec": 0.5,
+            "odom_rate_hz": 30.0,
+            "odom_frame": "odom",
+            "base_frame": "base_link",
+        }],
+    )
+    delay_adapter = TimerAction(period=5.0, actions=[adapter])
 
     return LaunchDescription([
         DeclareLaunchArgument("use_sim_time", default_value="true"),
         gz_sim,
         robot_state_pub,
         spawn,
-        delay,
+        delay_ctrl,
+        delay_adapter,
     ])

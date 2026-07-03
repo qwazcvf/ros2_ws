@@ -1,38 +1,33 @@
-# ==========================================================================
-#  Inspection Bot — ros2_control configuration (Ignition Gazebo Fortress)
+# Phase 2A — Front-steering Ackermann-like controllers
 #
-#  3 controllers:
-#    1. joint_state_broadcaster — publishes /joint_states
-#    2. steering_controller    — position control for 4 steering servos
-#    3. drive_controller       — velocity control for 4 wheel motors
+#  joint_state_broadcaster — publishes /joint_states
+#  front_steering_controller — position control for fl/fr steering only
+#  drive_controller — velocity control for all 4 wheels
 #
-#  The controller_manager runs INSIDE Gazebo (loaded by the system plugin).
-#  No standalone ros2_control_node is needed.
-# ==========================================================================
+#  Rear steering is NOT exposed to controllers (Phase 2A).
+#  Controller manager runs inside Gazebo (no standalone ros2_control_node).
 
 controller_manager:
   ros__parameters:
-    update_rate: 100
+    update_rate: 50
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-    steering_controller:
+    front_steering_controller:
       type: position_controllers/JointGroupPositionController
 
     drive_controller:
       type: velocity_controllers/JointGroupVelocityController
 
-# --- Steering controller: 4 position-controlled joints (rad) ---
-steering_controller:
+# Front steering: fl + fr only (rear locked)
+front_steering_controller:
   ros__parameters:
     joints:
       - fl_steering_joint
       - fr_steering_joint
-      - rl_steering_joint
-      - rr_steering_joint
 
-# --- Drive controller: 4 velocity-controlled joints (rad/s) ---
+# Drive: all 4 wheels
 drive_controller:
   ros__parameters:
     joints:

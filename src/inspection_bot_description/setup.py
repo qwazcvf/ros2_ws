@@ -41,6 +41,7 @@ setup(
     entry_points={
         'console_scripts': [
             'keyboard_control = inspection_bot_description.keyboard_control:main',
+            'gazebo_cmd_vel_adapter = inspection_bot_description.gazebo_cmd_vel_adapter:main',
             'static_joint_state_publisher = inspection_bot_description.static_joint_state_publisher:main',
         ],
     },
