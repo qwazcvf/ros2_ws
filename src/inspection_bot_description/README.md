@@ -1,30 +1,83 @@
-# Inspection Bot Description — Front-Steering 4WD
+# Inspection Bot Description — Phase 2A
 
-ROS 2 Humble robot description package for a **4-wheel front-steering 4WD** inspection robot.
+ROS 2 Humble package for **Gazebo simulation** of a 4-wheel front-steering 4WD inspection robot.
 
-## Architecture
+**Phase 2A scope:** Low-speed Ackermann-like simulation with unified `/cmd_vel` interface.
+No Nav2, no real LIDAR, no real MCU, no 4-wheel independent steering.
+
+## ⚠️ Important Constraints (Phase 2A)
+
+- **Do NOT run `nano_base_bridge simulation_mode=true` alongside Gazebo.**
+  This causes `/odom` and `odom → base_link` TF publication conflicts.
+- This phase does **NOT** do: Nav2, real LIDAR, real MCU, autonomous driving,
+  4-wheel independent steering, crab mode, or spot-rotate.
+- `/odom` published by `gazebo_cmd_vel_adapter` is **simulation test odometry** —
+  it is NOT real localization, NOT LIO/SLAM odometry. It uses simple dead-reckoning
+  integration inside the adapter for Phase 2A interface testing only.
+- `/scan` is **not enabled** in this phase. `lidar_link` exists in the URDF but
+  no virtual laser scan is published. Real Unitree LIDAR driver is NOT used here.
+
+## Interface Architecture (Phase 2A)
 
 ```
-base_link (chassis board 0.806×0.607×0.03 + wireframe acrylic shell)
- ├── fl_steering_joint → fl_steering_link → fl_wheel_joint → fl_wheel_link
- ├── fr_steering_joint → fr_steering_link → fr_wheel_joint → fr_wheel_link
- ├── rl_steering_joint → rl_steering_link → rl_wheel_joint → rl_wheel_link
- ├── rr_steering_joint → rr_steering_link → rr_wheel_joint → rr_wheel_link
- ├── lidar_joint  → lidar_link
- └── camera_joint → camera_link
+┌──────────────────────────────────────────────────────────┐
+│  keyboard_control.py   or   test publisher               │
+│         ↓ /cmd_vel (geometry_msgs/Twist)                 │
+│         │  linear.x  only (forward/reverse)              │
+│         │  angular.z only (left/right turn)              │
+│         │  all other fields ignored                      │
+│                                                          │
+│  gazebo_cmd_vel_adapter                                  │
+│    ├── Ackermann front-steering calculation              │
+│    ├── /front_steering_controller/commands [fl, fr]      │
+│    ├── /drive_controller/commands [fl, fr, rl, rr]       │
+│    ├── /odom (frame: odom, child: base_link)             │
+│    └── TF: odom → base_link                              │
+│         ↓                                                │
+│  ros2_control (inside Gazebo)                            │
+│    ├── front_steering_controller (position, active)      │
+│    ├── drive_controller (velocity, active)               │
+│    └── joint_state_broadcaster (active)                  │
+│         ↓                                                │
+│  Simulated vehicle in Ignition Gazebo                    │
+└──────────────────────────────────────────────────────────┘
 ```
+
+**External control uses ONLY `/cmd_vel`.** Controller command topics are internal
+Gazebo interfaces. Do NOT publish directly to:
+- `/front_steering_controller/commands`
+- `/drive_controller/commands`
+- `/steering_controller/commands` (deprecated in Phase 2A)
+- `/rear_steering_controller/commands` (not configured in Phase 2A)
+
+## /odom Status (Phase 2A)
+
+| Item | Value |
+|---|---|
+| Publisher | `gazebo_cmd_vel_adapter` (sole publisher) |
+| frame_id | `odom` |
+| child_frame_id | `base_link` |
+| Source | Simple dead-reckoning integration inside adapter |
+| Purpose | Phase 2A simulation interface testing |
+| NOT | Real localization / LIO / SLAM |
+
+## /scan Status (Phase 2A)
+
+`lidar_link` exists in the URDF at `(0.36101, -0.000993, 0.35253)`.
+Virtual `/scan` is **not enabled**. Real Unitree LIDAR driver is NOT used in this phase.
 
 ## TF Tree
 
 ```
+odom → base_link (from gazebo_cmd_vel_adapter)
 base_link
  ├── fl_steering_link (steering joint: continuous, axis Z)
  │    └── fl_wheel_link (wheel joint: continuous, axis Y)
  ├── fr_steering_link (steering joint: continuous, axis Z)
  │    └── fr_wheel_link (wheel joint: continuous, axis Y)
- ├── rl_steering_link (steering joint: continuous, axis Z)
+ ├── rl_steering_link (steering joint: continuous, axis Z) [Phase 2A: locked]
  │    └── rl_wheel_link (wheel joint: continuous, axis Y)
- ├── rr_steering_link (steering joint: continuous, axis Z)
+ ├── rr_steering_link (steering joint: continuous, axis Z) [Phase 2A: locked]
  │    └── rr_wheel_link (wheel joint: continuous, axis Y)
  ├── lidar_link (fixed)
  └── camera_link (fixed)
@@ -32,63 +85,48 @@ base_link
 
 ## Joints
 
-| Joint | Type | Parent | Child | Axis | Control |
+| Joint | Type | Parent | Child | Axis | Phase 2A |
 |---|---|---|---|---|---|
-| `fl_steering_joint` | continuous | base_link | fl_steering_link | Z | position |
-| `fr_steering_joint` | continuous | base_link | fr_steering_link | Z | position |
-| `rl_steering_joint` | continuous | base_link | rl_steering_link | Z | position |
-| `rr_steering_joint` | continuous | base_link | rr_steering_link | Z | position |
-| `fl_wheel_joint` | continuous | fl_steering_link | fl_wheel_link | Y | velocity |
-| `fr_wheel_joint` | continuous | fr_steering_link | fr_wheel_link | Y | velocity |
-| `rl_wheel_joint` | continuous | rl_steering_link | rl_wheel_link | Y | velocity |
-| `rr_wheel_joint` | continuous | rr_steering_link | rr_wheel_link | Y | velocity |
+| `fl_steering_joint` | continuous | base_link | fl_steering_link | Z | **position-controlled** |
+| `fr_steering_joint` | continuous | base_link | fr_steering_link | Z | **position-controlled** |
+| `rl_steering_joint` | continuous | base_link | rl_steering_link | Z | **state-only (locked)** |
+| `rr_steering_joint` | continuous | base_link | rr_steering_link | Z | **state-only (locked)** |
+| `fl_wheel_joint` | continuous | fl_steering_link | fl_wheel_link | Y | velocity-controlled |
+| `fr_wheel_joint` | continuous | fr_steering_link | fr_wheel_link | Y | velocity-controlled |
+| `rl_wheel_joint` | continuous | rl_steering_link | rl_wheel_link | Y | velocity-controlled |
+| `rr_wheel_joint` | continuous | rr_steering_link | rr_wheel_link | Y | velocity-controlled |
 | `lidar_joint` | fixed | base_link | lidar_link | — | — |
 | `camera_joint` | fixed | base_link | camera_link | — | — |
-
-## Control Mode
-
-**Front-steering 4WD with Ackermann geometry:**
-- Front wheels (fl, fr): steer via Ackermann angles
-- Rear wheels (rl, rr): fixed straight
-- All four wheels: driven at same speed
 
 ## Package Structure
 
 ```
 inspection_bot_description/
 ├── config/
-│   └── controllers.yaml              # ros2_control configuration
+│   └── controllers.yaml              # Phase 2A: front_steering + drive
 ├── inspection_bot_description/
 │   ├── __init__.py
-│   ├── keyboard_control.py           # keyboard controller (front-steering 4WD)
+│   ├── keyboard_control.py           # /cmd_vel keyboard (Phase 2A)
+│   ├── gazebo_cmd_vel_adapter.py     # /cmd_vel → controller + /odom + TF
 │   └── static_joint_state_publisher.py
 ├── launch/
 │   ├── view_model.launch.py          # RViz only
 │   ├── gz_sim.launch.py              # Ignition Gazebo Fortress (primary)
 │   └── gazebo.launch.py              # Classic Gazebo 11 (Jetson: not available)
-├── meshes/                           # STL meshes from SW export (unused)
-├── rviz/
-│   └── display.rviz                  # RViz configuration
+├── rviz/display.rviz
 ├── urdf/
-│   ├── robot.xacro                   # Main xacro with corner macro
-│   ├── robot_old_from_sw.urdf        # Original SW-exported URDF (backup)
-│   ├── robot.urdf                    # Old URDF (kept for reference)
+│   ├── robot.xacro                   # Phase 2A xacro
+│   ├── robot_old_from_sw.urdf        # SW-exported URDF (backup)
 │   └── robot.csv                     # SW-exported parameters
-├── worlds/
-│   └── empty.world                   # Empty Gazebo world
+├── worlds/empty.world
 ├── package.xml
-├── setup.py
-└── setup.cfg
+└── setup.py
 ```
 
 ## Installation (Jetson ARM64)
 
-### Prerequisites
-
 ```bash
-# ROS 2 Humble should already be at /opt/ros/humble
-
-# Add OSRF repo (for updated libignition-sensors6)
+# Add OSRF repo
 sudo sh -c 'echo "deb https://packages.osrfoundation.org/gazebo/ubuntu-stable jammy main" > /etc/apt/sources.list.d/gazebo-stable.list'
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys D2486D2DD83DB69272AFE98867170598AF249743
 sudo apt update
@@ -98,8 +136,6 @@ sudo apt install ros-humble-ros-gz-sim ros-humble-gz-ros2-control
 sudo apt install ros-humble-controller-manager ros-humble-joint-state-broadcaster
 sudo apt install ros-humble-position-controllers ros-humble-velocity-controllers
 ```
-
-### Build
 
 ```bash
 cd ~/ros2_ws
@@ -117,7 +153,7 @@ source ~/ros2_ws/install/setup.bash
 ros2 launch inspection_bot_description gz_sim.launch.py
 ```
 
-Wait ~10 seconds until Gazebo window opens and robot spawns.
+Wait ~10s for Gazebo + controllers + adapter.
 
 ### Terminal 2: Keyboard Control
 
@@ -129,83 +165,74 @@ ros2 run inspection_bot_description keyboard_control
 
 | Key | Action |
 |---|---|
-| W / S | Forward / Reverse (all 4 wheels) |
-| A / D | Front steering Left / Right (Ackermann) |
-| SPACE / X | Stop + center steering |
+| W / S | Forward / Reverse |
+| A / D | Turn Left / Right |
+| SPACE / X | Stop |
 | Q / E / Z / C | Disabled |
 | ESC | Quit |
 
-### Terminal 3 (optional): Monitor
+### Manual /cmd_vel Commands
 
 ```bash
-source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash
+# Forward (0.08 m/s)
+ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 0.08}, angular: {z: 0.0}}"
 
-# Check controllers
-ros2 control list_controllers
+# Reverse (-0.04 m/s)
+ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: -0.04}, angular: {z: 0.0}}"
 
-# Watch joint states
-ros2 topic echo /joint_states --once
+# Left turn (0.08 m/s + 0.30 rad/s)
+ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 0.08}, angular: {z: 0.30}}"
+
+# Right turn (0.08 m/s + -0.30 rad/s)
+ros2 topic pub --rate 10 /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 0.08}, angular: {z: -0.30}}"
+
+# Pure angular.z — vehicle does NOT move or steer
+ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 0.0}, angular: {z: 0.30}}"
+
+# Stop
+ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{}"
 ```
 
-### RViz Display (no simulator)
-
-```bash
-source ~/ros2_ws/install/setup.bash
-ros2 launch inspection_bot_description view_model.launch.py
-```
-
-### Verify URDF
-
-```bash
-source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash
-xacro src/inspection_bot_description/urdf/robot.xacro > /tmp/robot.urdf
-check_urdf /tmp/robot.urdf
-```
-
-### Manual Joint Commands
-
-```bash
-# Steer front wheels to 30 degrees (0.524 rad)
-ros2 topic pub --once /steering_controller/commands std_msgs/msg/Float64MultiArray \
-  "{data: [0.524, 0.524, 0.0, 0.0]}"
-
-# Drive all wheels at 5 rad/s
-ros2 topic pub --once /drive_controller/commands std_msgs/msg/Float64MultiArray \
-  "{data: [5.0, 5.0, 5.0, 5.0]}"
-```
-
-## Controller Architecture
+## Controller Architecture (Phase 2A)
 
 ```
 controller_manager (inside Gazebo plugin)
- ├── joint_state_broadcaster  → /joint_states (8 joints)
- ├── steering_controller      ← /steering_controller/commands [fl, fr, rl, rr] position
- └── drive_controller         ← /drive_controller/commands [fl, fr, rl, rr] velocity
+ ├── joint_state_broadcaster   → /joint_states (8 joints)
+ ├── front_steering_controller ← /front_steering_controller/commands [fl, fr]
+ └── drive_controller          ← /drive_controller/commands [fl, fr, rl, rr]
 
-Hardware: ign_ros2_control/IgnitionSystem (via libgz_ros2_control-system.so)
+Hardware: ign_ros2_control/IgnitionSystem (libgz_ros2_control-system.so)
 ```
+
+## Adapter Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `wheelbase` | 0.460 | Front-rear axle distance (m) |
+| `track_width` | 0.476 | Left-right wheel distance (m) |
+| `wheel_radius` | 0.076 | Wheel radius (m) |
+| `max_speed_mps` | 0.10 | Max forward speed (m/s) |
+| `max_reverse_speed_mps` | 0.05 | Max reverse speed (m/s) |
+| `max_angular_speed_radps` | 0.30 | Max angular speed (rad/s) |
+| `max_steering_angle_rad` | 0.60 | Max front steering angle (rad) |
+| `cmd_timeout_sec` | 0.5 | /cmd_vel timeout (s) — stops if no msg |
+| `odom_rate_hz` | 30.0 | Odom publish rate (Hz) |
 
 ## Gazebo Version
 
-This Jetson ARM64 platform uses **Ignition Gazebo Fortress** (`ros_gz_sim`).
-Classic Gazebo 11 is not available on ARM64.
-
-- Hardware plugin: `ign_ros2_control/IgnitionSystem`
-- Gazebo plugin: `libgz_ros2_control-system.so`
-- Controller manager runs **inside** Gazebo (no standalone ros2_control_node)
+Jetson ARM64 → **Ignition Gazebo Fortress** (`ros_gz_sim`). Classic Gazebo 11 is not available.
 
 ## Geometry
 
 | Part | Shape | Dimensions |
 |---|---|---|
 | Chassis board | box | 0.806 × 0.607 × 0.03 m |
-| Wheel | cylinder | r=0.076 m (76mm), w=0.04 m (40mm) |
-| Steering disk | cylinder | r=0.065 m, h=0.025 m |
-| Steering column | cylinder | r=0.028 m, h=0.11 m |
-| Fork arms | box (×2) | 0.025 × 0.015 × 0.13 m |
-| Shock absorber | cylinder | r=0.012 m, h=0.09 m |
+| Wheel | cylinder | r=0.076 m, w=0.04 m |
 | LiDAR | cylinder | r=0.035 m, h=0.06 m |
 | Camera | box | 0.06 × 0.035 × 0.035 m |
 
@@ -217,27 +244,35 @@ Classic Gazebo 11 is not available on ARM64.
 | Rear axle | -0.2284 | — | — |
 | Left wheels | — | 0.238 | — |
 | Right wheels | — | -0.238 | — |
-| Steering joint | — | — | -0.055 |
-| Wheel center | — | — | -0.179 |
+| Steering joint Z | — | — | -0.055 |
+| Wheel center Z | — | — | -0.179 |
 | LiDAR | 0.36101 | -0.000993 | 0.35253 |
 | Camera | 0.4056 | 0 | 0.21 |
 
 ## Debugging
 
 ```bash
-# TF tree
-ros2 run tf2_tools view_frames
+source /opt/ros/humble/setup.bash && source ~/ros2_ws/install/setup.bash
 
-# Controller list
+# Controllers
 ros2 control list_controllers
-
-# Controller details
-ros2 control list_controllers -v
-ros2 control list_hardware_interfaces
 
 # Joint states
 ros2 topic echo /joint_states --once
 
-# Topics
-ros2 topic list | grep -E 'cmd|controller|joint'
+# /cmd_vel subscribers
+ros2 topic info /cmd_vel -v
+
+# /odom publisher
+ros2 topic info /odom -v
+
+# TF
+ros2 run tf2_ros tf2_echo odom base_link
+
+# Verify URDF
+xacro src/inspection_bot_description/urdf/robot.xacro > /tmp/robot.urdf
+check_urdf /tmp/robot.urdf
+
+# RViz only (no Gazebo)
+ros2 launch inspection_bot_description view_model.launch.py
 ```
