@@ -21,11 +21,11 @@ import termios
 import tty
 import select
 
-MAX_LINEAR  = 0.60    # m/s (real speed range 0.2~0.6)
-MAX_REVERSE = 0.20    # m/s
-MAX_ANGULAR = 1.50    # rad/s
-STEP_LINEAR = 0.05    # m/s per keypress
-STEP_ANGULAR = 0.10   # rad/s per keypress
+MAX_LINEAR  = 0.10    # m/s (Phase 2A-R conservative)
+MAX_REVERSE = 0.05    # m/s
+MAX_ANGULAR = 0.30    # rad/s
+STEP_LINEAR = 0.02    # m/s per keypress
+STEP_ANGULAR = 0.05   # rad/s per keypress
 PUB_RATE = 0.05       # 20 Hz
 
 HELP_MSG = """
