@@ -18,7 +18,7 @@
     wheel_drop = Z offset from steering_link to wheel center (negative = down)
     wheel_center_z = steering_z + wheel_drop = -0.055 + (-0.124) = -0.179
   -->
-  <xacro:macro name="corner" params="prefix x y steering_z wheel_drop">
+  <xacro:macro name="corner" params="prefix x y steering_z wheel_drop side steering_type:=continuous">
 
     <!-- Steering link: servo turntable + column + fork arms + shock -->
     <link name="${prefix}_steering_link">
@@ -46,48 +46,49 @@
         <material name="dark"/>
       </visual>
 
-      <!-- left fork arm -->
+      <!-- outer fork arm (farther from wheel) -->
       <visual>
-        <origin xyz="0 0.04 -0.105" rpy="0 0 0"/>
+        <origin xyz="0 ${side * 0.065} -0.105" rpy="0 0 0"/>
         <geometry>
-          <box size="0.025 0.015 0.13"/>
+          <box size="0.025 0.012 0.13"/>
         </geometry>
         <material name="grey"/>
       </visual>
 
-      <!-- right fork arm -->
+      <!-- inner fork arm (closer to wheel, but not touching) -->
       <visual>
-        <origin xyz="0 -0.04 -0.105" rpy="0 0 0"/>
+        <origin xyz="0 ${side * 0.03} -0.105" rpy="0 0 0"/>
         <geometry>
-          <box size="0.025 0.015 0.13"/>
+          <box size="0.025 0.012 0.13"/>
         </geometry>
         <material name="grey"/>
       </visual>
 
-      <!-- simplified shock absorber / spring -->
+      <!-- simplified shock absorber (offset to side, visual only) -->
       <visual>
-        <origin xyz="-0.045 0 -0.095" rpy="0 0 0"/>
+        <origin xyz="-0.055 ${side * 0.085} -0.095" rpy="0 0 0"/>
         <geometry>
           <cylinder radius="0.012" length="0.09"/>
         </geometry>
         <material name="orange"/>
       </visual>
 
+      <!-- tight collision around steering column only, avoid wheel overlap -->
       <collision>
         <origin xyz="0 0 -0.055" rpy="0 0 0"/>
         <geometry>
-          <cylinder radius="0.04" length="0.13"/>
+          <cylinder radius="0.03" length="0.08"/>
         </geometry>
       </collision>
     </link>
 
-    <!-- Steering joint: rotates the entire steering module around Z -->
-    <joint name="${prefix}_steering_joint" type="continuous">
+    <!-- Steering joint: strong damping prevents self-steer on spawn -->
+    <joint name="${prefix}_steering_joint" type="${steering_type}">
       <parent link="base_link"/>
       <child link="${prefix}_steering_link"/>
       <origin xyz="${x} ${y} ${steering_z}" rpy="0 0 0"/>
       <axis xyz="0 0 1"/>
-      <dynamics damping="0.5" friction="0.15"/>
+      <dynamics damping="5.0" friction="1.0"/>
     </joint>
 
     <!-- Wheel link -->
@@ -292,10 +293,10 @@
 
 
   <!-- FOUR CORNERS -->
-  <xacro:corner prefix="fl" x="0.2316"  y="0.238"  steering_z="-0.055" wheel_drop="-0.124"/>
-  <xacro:corner prefix="fr" x="0.2316"  y="-0.238" steering_z="-0.055" wheel_drop="-0.124"/>
-  <xacro:corner prefix="rl" x="-0.2284" y="0.238"  steering_z="-0.055" wheel_drop="-0.124"/>
-  <xacro:corner prefix="rr" x="-0.2284" y="-0.238" steering_z="-0.055" wheel_drop="-0.124"/>
+  <xacro:corner prefix="fl" x="0.2316"  y="0.238"  steering_z="-0.055" wheel_drop="-0.124" side="1"/>
+  <xacro:corner prefix="fr" x="0.2316"  y="-0.238" steering_z="-0.055" wheel_drop="-0.124" side="-1"/>
+  <xacro:corner prefix="rl" x="-0.2284" y="0.238"  steering_z="-0.055" wheel_drop="-0.124" side="1"  steering_type="fixed"/>
+  <xacro:corner prefix="rr" x="-0.2284" y="-0.238" steering_z="-0.055" wheel_drop="-0.124" side="-1" steering_type="fixed"/>
 
 
   <!-- LIDAR -->
@@ -372,15 +373,7 @@
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-    <!-- Phase 2A: rear steering — state only, no command interface -->
-    <joint name="rl_steering_joint">
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="rr_steering_joint">
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
+    <!-- Phase 2A: rear steering joints are fixed (not in ros2_control) -->
 
     <joint name="fl_wheel_joint">
       <command_interface name="velocity"/>
@@ -420,10 +413,23 @@
   <gazebo reference="fr_steering_link"><material>Gazebo/Grey</material></gazebo>
   <gazebo reference="rl_steering_link"><material>Gazebo/Grey</material></gazebo>
   <gazebo reference="rr_steering_link"><material>Gazebo/Grey</material></gazebo>
-  <gazebo reference="fl_wheel_link"><material>Gazebo/FlatBlack</material></gazebo>
-  <gazebo reference="fr_wheel_link"><material>Gazebo/FlatBlack</material></gazebo>
-  <gazebo reference="rl_wheel_link"><material>Gazebo/FlatBlack</material></gazebo>
-  <gazebo reference="rr_wheel_link"><material>Gazebo/FlatBlack</material></gazebo>
+  <!-- High friction for proper Ackermann steering grip -->
+  <gazebo reference="fl_wheel_link">
+    <mu1>1.5</mu1><mu2>1.5</mu2>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+  <gazebo reference="fr_wheel_link">
+    <mu1>1.5</mu1><mu2>1.5</mu2>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+  <gazebo reference="rl_wheel_link">
+    <mu1>1.5</mu1><mu2>1.5</mu2>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+  <gazebo reference="rr_wheel_link">
+    <mu1>1.5</mu1><mu2>1.5</mu2>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
   <gazebo reference="lidar_link"><material>Gazebo/Blue</material></gazebo>
   <gazebo reference="camera_link"><material>Gazebo/Red</material></gazebo>
 

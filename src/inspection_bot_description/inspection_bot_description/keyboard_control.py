@@ -21,12 +21,12 @@ import termios
 import tty
 import select
 
-MAX_LINEAR  = 0.10   # m/s
-MAX_REVERSE = 0.05   # m/s
-MAX_ANGULAR = 0.30   # rad/s
-STEP_LINEAR = 0.02   # m/s per keypress
-STEP_ANGULAR = 0.05  # rad/s per keypress
-PUB_RATE = 0.05      # 20 Hz
+MAX_LINEAR  = 0.60    # m/s (real speed range 0.2~0.6)
+MAX_REVERSE = 0.20    # m/s
+MAX_ANGULAR = 1.50    # rad/s
+STEP_LINEAR = 0.05    # m/s per keypress
+STEP_ANGULAR = 0.10   # rad/s per keypress
+PUB_RATE = 0.05       # 20 Hz
 
 HELP_MSG = """
 ╔══════════════════════════════════════════════════════════════╗
@@ -57,12 +57,9 @@ def get_key():
 class KeyboardController(Node):
     def __init__(self):
         super().__init__("keyboard_control")
-
         self.cmd_pub = self.create_publisher(Twist, "/cmd_vel", 10)
-
         self.linear_x = 0.0
         self.angular_z = 0.0
-
         self.timer = self.create_timer(PUB_RATE, self.publish_cmd)
 
     def publish_cmd(self):
@@ -70,11 +67,8 @@ class KeyboardController(Node):
         msg.linear.x = self.linear_x
         msg.angular.z = self.angular_z
         self.cmd_pub.publish(msg)
-
-        print(
-            f"\r  linear.x: {self.linear_x:+6.2f} m/s | angular.z: {self.angular_z:+6.2f} rad/s  ",
-            end="", flush=True,
-        )
+        print(f"\r  linear: {self.linear_x:+6.2f} m/s | angular: {self.angular_z:+6.2f} rad/s  ",
+              end="", flush=True)
 
 
 def main():
@@ -87,7 +81,6 @@ def main():
     try:
         while rclpy.ok():
             key = get_key()
-
             if key == "w":
                 node.linear_x = min(MAX_LINEAR, node.linear_x + STEP_LINEAR)
             elif key == "s":
@@ -104,16 +97,11 @@ def main():
                 print("\n  Q/E/Z/C disabled. Use A/D for turning, W/S for speed.")
             elif key in ("\x1b", "\x03"):
                 break
-
             rclpy.spin_once(node, timeout_sec=0.01)
-
     except Exception as e:
         print(f"\nError: {e}")
     finally:
-        # Publish zero before exit
         zero = Twist()
-        zero.linear.x = 0.0
-        zero.angular.z = 0.0
         node.cmd_pub.publish(zero)
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
