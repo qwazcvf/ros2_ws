@@ -16,6 +16,7 @@ setup(
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*')),
         (os.path.join('share', package_name, 'config'), glob('config/*')),
+        (os.path.join('share', package_name, 'models', 'inspection_bot'), glob('models/inspection_bot/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

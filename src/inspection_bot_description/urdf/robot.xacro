@@ -433,18 +433,24 @@
   <!-- Phase 2B-1: 2D Lidar sensor on lidar_link -->
   <gazebo reference="lidar_link">
     <material>Gazebo/Blue</material>
-    <sensor name="lidar_2d" type="gpu_lidar">
-      <always_on>true</always_on>
+    <sensor name="phase2b_lidar" type="gpu_lidar">
+      <alwaysOn>1</alwaysOn>
       <visualize>true</visualize>
       <update_rate>10</update_rate>
+      <topic>/scan</topic>
       <lidar>
         <scan>
           <horizontal>
-            <samples>360</samples>
+            <samples>720</samples>
             <resolution>1</resolution>
             <min_angle>-3.14159</min_angle>
             <max_angle>3.14159</max_angle>
           </horizontal>
+          <vertical>
+            <samples>1</samples>
+            <min_angle>0</min_angle>
+            <max_angle>0</max_angle>
+          </vertical>
         </scan>
         <range>
           <min>0.1</min>
