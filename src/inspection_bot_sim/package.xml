@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>inspection_bot_sim</name>
+  <version>0.0.0</version>
+  <description>Phase 2B-1: Gazebo simulation launch, world, virtual sensors, and RViz config for inspection bot.</description>
+  <maintainer email="wzc@todo.todo">wzc</maintainer>
+  <license>Apache-2.0</license>
+
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>ros_gz_sim</depend>
+  <depend>rviz2</depend>
+  <depend>xacro</depend>
+  <depend>inspection_bot_description</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
