@@ -156,7 +156,7 @@
           <always_on>1</always_on>
           <visualize>true</visualize>
           <update_rate>10</update_rate>
-          <topic>/scan</topic>
+          <topic>/debug/static_scan</topic>
           <lidar>
             <scan>
               <horizontal>
