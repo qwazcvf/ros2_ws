@@ -147,7 +147,13 @@
       <visual name="v"><geometry><cylinder><radius>0.25</radius><length>0.8</length></cylinder></geometry>
       <material><ambient>0.55 0.52 0.48 1</ambient><diffuse>0.55 0.52 0.48 1</diffuse><specular>0.12 0.12 0.12 1</specular></material></visual></link></model>
 
-    <!-- ====== 静态测试 Lidar (冒烟测试) ====== -->
+    <!-- ====== Inspection Bot (Gazebo SDF, with lidar sensor) ====== -->
+    <include>
+      <uri>model://inspection_bot</uri>
+      <pose>0 0 0.3 0 0 0</pose>
+    </include>
+
+    <!-- ====== 静态测试 Lidar (调试用, 不占 /scan) ====== -->
     <model name="test_lidar_static">
       <static>true</static>
       <pose>0 0 0.5 0 0 0</pose>

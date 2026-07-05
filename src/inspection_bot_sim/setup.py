@@ -26,6 +26,7 @@ setup(
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
+            'scan_frame_normalizer = inspection_bot_sim.scan_frame_normalizer:main',
         ],
     },
 )

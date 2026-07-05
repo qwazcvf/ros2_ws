@@ -1,10 +1,11 @@
 """
-Phase 2B-1-FIX: Gazebo with factory world, SDF-based lidar sensor.
-Bot spawned from pre-generated SDF file (not URDF topic) for reliable sensor.
+Phase 2B-1-FIX-C: Gazebo with world-included robot model (SDF + lidar sensor).
+
+Robot model is loaded at world startup via <include> — sensor activates reliably.
 """
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -14,18 +15,24 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     desc_share = FindPackageShare("inspection_bot_description").find("inspection_bot_description")
-    sim_share = FindPackageShare("inspection_bot_sim").find("inspection_bot_sim")
+    sim_share  = FindPackageShare("inspection_bot_sim").find("inspection_bot_sim")
     use_sim_time = LaunchConfiguration("use_sim_time", default="true")
 
-    # Robot description for TF (robot_state_publisher)
+    # Robot description for TF (URDF model for robot_state_publisher)
     xacro_file = os.path.join(desc_share, "urdf", "robot.xacro")
     robot_desc = {"robot_description": ParameterValue(
         Command([FindExecutable(name="xacro"), " ", xacro_file]), value_type=str)}
 
-    # World absolute path
+    # Model path for Gazebo to find model://inspection_bot
+    models_path = os.path.join(sim_share, "models")
+    # Also include home models for fallback
+    home_models = os.path.expanduser("~/.ignition/gazebo/models")
+    gz_model_path = f"{models_path}:{home_models}"
+
     world_path = os.path.join(sim_share, "worlds", "phase2b_simple.sdf")
 
-    # Gazebo
+    # Gazebo with model path set
+    set_model_path = SetEnvironmentVariable("IGN_GAZEBO_RESOURCE_PATH", gz_model_path)
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([FindPackageShare("ros_gz_sim"), "launch", "gz_sim.launch.py"])
@@ -33,17 +40,11 @@ def generate_launch_description():
         launch_arguments={"gz_args": f"-r {world_path}"}.items(),
     )
 
-    # TF
+    # TF from URDF
     rsp = Node(package="robot_state_publisher", executable="robot_state_publisher",
                output="both", parameters=[robot_desc, {"use_sim_time": use_sim_time}])
 
-    # Spawn from pre-generated SDF file (with lidar sensor + /scan topic)
-    sdf_file = os.path.join(sim_share, "models", "inspection_bot", "model.sdf")
-    spawn = Node(package="ros_gz_sim", executable="create",
-                 arguments=["-file", sdf_file, "-name", "inspection_bot", "-z", "0.3"],
-                 output="screen")
-
-    # Controllers
+    # Controllers (robot spawns via world include, controllers loaded after)
     jsp = Node(package="controller_manager", executable="spawner",
                arguments=["joint_state_broadcaster", "-c", "/controller_manager"],
                parameters=[{"use_sim_time": use_sim_time}])
@@ -53,7 +54,7 @@ def generate_launch_description():
     dr = Node(package="controller_manager", executable="spawner",
               arguments=["drive_controller", "-c", "/controller_manager"],
               parameters=[{"use_sim_time": use_sim_time}])
-    delay_ctrl = TimerAction(period=5.0, actions=[jsp, fs, dr])
+    delay_ctrl = TimerAction(period=8.0, actions=[jsp, fs, dr])
 
     # Adapter
     adapter = Node(package="inspection_bot_description", executable="gazebo_cmd_vel_adapter",
@@ -62,15 +63,21 @@ def generate_launch_description():
                                 "wheel_radius": 0.076, "max_speed_mps": 0.10, "max_reverse_speed_mps": 0.05,
                                 "max_angular_speed_radps": 0.30, "max_steering_angle_rad": 0.785,
                                 "odom_frame": "odom", "base_frame": "base_link"}])
-    delay_adapter = TimerAction(period=8.0, actions=[adapter])
+    delay_adapter = TimerAction(period=10.0, actions=[adapter])
 
-    # /scan bridge (GZ -> ROS)
+    # /scan bridge (GZ -> ROS2 /scan_raw)
     bridge = Node(package="ros_gz_bridge", executable="parameter_bridge", name="bridge_scan",
                   output="screen",
-                  arguments=["/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan"],
+                  arguments=["/scan_raw@sensor_msgs/msg/LaserScan@gz.msgs.LaserScan"],
                   parameters=[{"use_sim_time": use_sim_time}])
+
+    # Frame normalizer: /scan_raw -> /scan (frame_id=lidar_link)
+    normalizer = Node(package="inspection_bot_sim", executable="scan_frame_normalizer",
+                      name="scan_frame_normalizer", output="screen",
+                      parameters=[{"use_sim_time": use_sim_time}])
 
     return LaunchDescription([
         DeclareLaunchArgument("use_sim_time", default_value="true"),
-        gz_sim, rsp, spawn, delay_ctrl, delay_adapter, bridge,
+        set_model_path,
+        gz_sim, rsp, delay_ctrl, delay_adapter, bridge, normalizer,
     ])

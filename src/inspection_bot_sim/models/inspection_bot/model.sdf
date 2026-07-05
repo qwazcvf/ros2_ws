@@ -658,7 +658,7 @@
       <sensor name="phase2b_lidar" type="gpu_lidar">
         <visualize>true</visualize>
         <update_rate>10</update_rate>
-        <topic>/scan</topic>
+        <topic>/scan_raw</topic>
         <lidar>
           <scan>
             <horizontal>
